@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+
+import 'DurationFormat.dart';
 
 void main() => runApp(MyApp());
 
@@ -46,17 +49,38 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-  bool _countingDown = false;
-  StreamSubscription _timerStream;
+  int _timerSeconds = 0;
+  int _numberOfRounds = 0;
+  bool _timerRunning = false;
+  final Stream _timer = Stream.periodic(Duration(seconds: 1));
+  StreamSubscription _timerSubscription;
+
+  Widget numberpicker() {
+    Iterable<int> naturalsTo(int n) sync* {
+      int k = 0;
+      while (k < n) yield k++;
+    }
+
+    return CupertinoPicker(
+      children: naturalsTo(10).map((n) {
+        return Text('$n');
+      }).toList(),
+      itemExtent: 30,
+      onSelectedItemChanged: (int index) {
+        setState(() {
+          _numberOfRounds = index;
+        });
+      },
+    );
+  }
 
   _MyHomePageState() {
-    _timerStream = Stream<int>.periodic(Duration(seconds: 1)).listen((event) {
-      if (_countingDown) {
+    _timerSubscription = _timer.listen((event) {
+      if (_timerSeconds > 0) {
         setState(() {
-          _counter--;
-          if (_counter == 0) {
-            _countingDown = false;
+          _timerSeconds--;
+          if (_timerSeconds == 0) {
+            _stopTimer();
           }
         });
       }
@@ -70,20 +94,22 @@ class _MyHomePageState extends State<MyHomePage> {
       // so that the display can reflect the updated values. If we changed
       // _counter without calling setState(), then the build method would not be
       // called again, and so nothing would appear to happen.
-      _counter++;
+      _timerSeconds++;
     });
   }
 
   void _stopTimer() {
+    _timerSubscription.pause();
     setState(() {
-      _countingDown = false;
+      _timerRunning = false;
     });
   }
 
   void _startTimer() {
-    if (_counter > 0) {
+    if (_timerSeconds > 0) {
+      _timerSubscription.resume();
       setState(() {
-        _countingDown = true;
+        _timerRunning = true;
       });
     }
   }
@@ -122,17 +148,78 @@ class _MyHomePageState extends State<MyHomePage> {
           // horizontal).
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Text(
-              'Counting down from:',
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: <Widget>[
+                Text(
+                  'Total time remaining:',
+                  style: Theme.of(context).textTheme.title,
+                ),
+                Text(
+                  durationFormat(Duration(seconds: _timerSeconds)),
+                  style: Theme.of(context).textTheme.title,
+                ),
+              ],
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.display1,
+            Row(
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Text(
+                      'Number of rounds:',
+                      style: Theme.of(context).textTheme.title,
+                    ),
+                    FlatButton(
+                      child: Text(
+                        '$_numberOfRounds',
+                        style: Theme.of(context).textTheme.title,
+                      ),
+                      onPressed: () async {
+                        await showModalBottomSheet(
+                            context: context,
+                            builder: (BuildContext builder) {
+                              return Container(
+                                  height: MediaQuery.of(context)
+                                          .copyWith()
+                                          .size
+                                          .height /
+                                      3,
+                                  child: numberpicker());
+                            });
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            Row(
+              children: <Widget>[
+                Text(
+                  'Number of intervals:',
+                  style: Theme.of(context).textTheme.title,
+                ),
+              ],
+            ),
+            Row(
+              children: <Widget>[
+                Text(
+                  'Interval duration:',
+                  style: Theme.of(context).textTheme.title,
+                ),
+              ],
+            ),
+            Row(
+              children: <Widget>[
+                Text(
+                  'Rest between intervals:',
+                  style: Theme.of(context).textTheme.title,
+                ),
+              ],
             ),
             IconButton(
-              icon: Icon(_countingDown ? Icons.pause : Icons.play_arrow),
+              icon: Icon(_timerRunning ? Icons.pause : Icons.play_arrow),
               onPressed: () {
-                _countingDown ? _stopTimer() : _startTimer();
+                _timerRunning ? _stopTimer() : _startTimer();
               },
             ),
           ],
